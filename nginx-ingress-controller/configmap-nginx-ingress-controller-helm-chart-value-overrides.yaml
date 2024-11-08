@@ -7,7 +7,7 @@ metadata:
 data:
   values.yaml: |-
     # paste chart values.yaml (indented) here and alter as required
-	    controller:
+    controller:
       ## The name of the Ingress Controller daemonset or deployment.
       name: controller
     
