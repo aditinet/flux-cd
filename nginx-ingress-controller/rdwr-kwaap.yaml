@@ -1,0 +1,84 @@
+apiVersion: v1
+data:
+  main.lua: "local ngx = ngx\nlocal ngx_var = ngx.var\nlocal ngx_req = ngx.req\nlocal
+    ngx_log = ngx.log\nlocal ngx_ERR = ngx.ERR\nlocal ngx_WARN = ngx.WARN\nlocal kwaap
+    = {\n    _VERSION = \"1.16.0\", -- version in X.Y.Z format. Check hybrid-mode
+    compatibility requirements.\n}\nkwaap.__index = kwaap\n\nlocal function traceback
+    ()\n  local level = 1\n  local str_trace = \" \"\n  while true do\n    local info
+    = debug.getinfo(level, \"Snl\")\n    if not info then break end\n    if info.what
+    == \"C\" then   -- is a C function?\n      str_trace = str_trace .. string.format(\"{%d:
+    C function}\", level)\n    else   -- a Lua function\n      str_trace = str_trace
+    .. string.format(\"{%d: [%s]: %d: %s}\", level, info.short_src, info.currentline,
+    info.name)\n    end\n    level = level + 1\n  end\n  return str_trace\nend\n\nfunction
+    kwaap:rewrite()\n    local http = require \"resty.http\"\n    local partial_header_name=tostring(ngx_var.partial_header_name)
+    or \"x-envoy-auth-partial-body\"\n    local original_content_length_header_name=tostring(ngx_var.original_content_length_header_name)
+    or \"x-enforcerdd-original-content-length\"\n    local max_req_bytes = tonumber(ngx_var.max_req_bytes)
+    or 10240\n    local fail_open = ngx_var.fail_open  or \"true\"\n    local enforcer_service_address
+    = ngx_var.enforcer_service_address or \"waas-enforcer.kwaf.svc.cluster.local\"\n
+    \   local enforcer_service_port = ngx_var.enforcer_service_port or 80\n    local
+    lua_socket_connect_timeout = tonumber(ngx_var.lua_socket_connect_timeout) or 1000\n
+    \   local lua_socket_read_timeout = tonumber(ngx_var.lua_socket_read_timeout)
+    or 1000\n    local lua_socket_send_timeout = tonumber(ngx_var.lua_socket_send_timeout)
+    or 1000\n    local inspection_fail_error_code = (tonumber(ngx_var.inspection_fail_error_code))
+    or 406\n    local inspection_fail_reason = ngx_var.inspection_fail_reason or \"\"\n
+    \   local cloud_env = ngx_var.cloud_env or \"local\"\n    local log_debug = (ngx_var.debug
+    == \"true\") or false\n    local keepalive = not((ngx_var.keepalive == \"false\")
+    or false)\n    local function log(msg, log_level)\n      if log_debug then\n          local
+    str_trace = traceback()\n          if not log_level then\n              log_level
+    = ngx_ERR\n          end\n          ngx_log(log_level, msg, str_trace)\n      end\n
+    \   end\n    local function read_body()\n      local read_length = \"*all\"\n
+    \     ngx_req.read_body()\n      local r_body = ngx_req.get_body_data()\n      if
+    r_body == nil then\n        local file = ngx_req.get_body_file()\n        if file
+    then\n          local file_handle = io.open(file, \"rb\")\n          if not file_handle
+    then\n            log(\"could not obtain file handle\")\n          else\n            local
+    req_body = file_handle:read(read_length)\n            file_handle:close()\n            r_body
+    = req_body\n          end\n        else \n          log(\"get_body_file returned
+    nil\")\n        end\n      end\n    \n      if r_body == nil then\n        log(\"nil
+    body\")\n      else\n        log(\"body size \" .. #r_body, ngx_WARN)\n      end\n
+    \     return r_body\n    end\n    local kwaap_plugin = ngx_var.kwaap_plugin\n
+    \   if kwaap_plugin ~= \"on\" then\n      log(\"plugin kwaap is disabled and =
+    \" .. tostring(kwaap_plugin), ngx_WARN)\n      return\n    end\n    local kwaf_fail_close
+    = false\n    if fail_open then\n        kwaf_fail_close = (fail_open ~= \"true\")\n
+    \   end\n    local r_method = ngx_req.get_method()\n    local r_request_uri =
+    ngx_var.request_uri\n    local r_headers = ngx_req.get_headers()\n    if cloud_env
+    == \"aws\" then\n      r_headers[\"xff\"] = ngx_var.xff\n    end\n    local r_content_length
+    = ngx_var.http_content_length\n    if r_content_length == nil then\n      r_content_length
+    = 0\n    else\n      r_content_length=tonumber(r_content_length)\n    end \n    local
+    enforcer_content_length = tonumber(\"0\")\n    local max_enforcer_content_length
+    = max_req_bytes\n    if r_content_length > max_enforcer_content_length then\n
+    \     log(\"request bigger than max_enforcer_content_length (\" .. tostring(r_content_length)
+    .. \"), will send only max_enforcer_content_length (\" .. tostring(max_enforcer_content_length)
+    .. \")\", ngx_WARN)\n      enforcer_content_length = max_enforcer_content_length\n
+    \     r_headers[partial_header_name] = \"true\"\n      r_headers[original_content_length_header_name]
+    = r_content_length\n    else\n      enforcer_content_length=r_content_length\n
+    \     r_headers[partial_header_name] = \"false\"\n    end\n    r_headers[\"content-length\"]
+    = tostring(enforcer_content_length)\n    local r_body = \"\"\n    if r_content_length
+    > 0 then\n      r_body = read_body()\n    end\n    if r_content_length > enforcer_content_length
+    then\n      r_body = r_body:sub(1, max_enforcer_content_length)\n    end\n    local
+    httpc = http.new()\n    httpc:set_timeouts(lua_socket_connect_timeout, lua_socket_send_timeout,
+    lua_socket_read_timeout)\n    local params = {}\n    params.method = r_method\n
+    \   params.body = r_body\n    params.headers = r_headers\n    params.keepalive
+    = keepalive\n    params.query  = ngx_var.query_string\n    local i, j = string.find(r_request_uri,
+    '?', 1, true)\n    if i ~= nil then\n      params.query = string.sub(r_request_uri,
+    i)\n      r_request_uri = string.sub(r_request_uri, 1, i-1)\n    end\n    local
+    res, err = httpc:request_uri(\"http://\" .. enforcer_service_address .. \":\"
+    .. enforcer_service_port .. r_request_uri, params)\n    log( \"request sent to
+    enforcer [\" .. r_request_uri .. \" query  \" .. tostring(params.query)   ..\"]
+    \")\n\n    if not res then\n        if err == \"timeout\" then\n          log(\"timeout
+    connecting to enforcer. fail open = \" .. tostring(fail_open))\n          if kwaf_fail_close
+    == false then\n              return\n          else\n              ngx.status=
+    inspection_fail_error_code\n              ngx.say(inspection_fail_reason)\n              ngx.exit(ngx.HTTP_OK)\n
+    \         end\n        end\n        log(\"enforcer request failed: \" .. err ..
+    \" when fail closed = \" .. tostring(kwaf_fail_close))\n        if kwaf_fail_close
+    == false then\n          return\n        else\n          ngx.status= inspection_fail_error_code\n
+    \         ngx.say(inspection_fail_reason)\n          ngx.exit(ngx.HTTP_OK)\n        end\n
+    \   end\n\n    local s_status = res.status\n    local s_headers = res.headers\n
+    \   local s_body   = res.body\n\n    if s_status == ngx.HTTP_FORBIDDEN then\n
+    \     ngx.status = s_status\n      for k, v in pairs(s_headers) do\n          ngx.header[k]
+    = v\n      end\n      ngx.say(s_body)\n      return\n    else\n      return\n
+    \   end\nend\nreturn kwaap"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: rdwr-kwaap
+  namespace: nginx-ingress-controller
