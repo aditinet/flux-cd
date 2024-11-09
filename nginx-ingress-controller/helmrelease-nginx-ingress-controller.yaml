@@ -17,5 +17,5 @@ spec:
   releaseName: nginx-ingress-controller
   valuesFrom:
   - kind: ConfigMap
-    name: nginx-ingress-controller-helm-chart-value-overrides
+    name: nnginx-ingress-controller-helm-chart-value-overrides
     valuesKey: values.yaml # This is the default, but best to be explicit for clarity
