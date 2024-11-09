@@ -13,6 +13,9 @@ spec:
         name: nginx-ingress
         namespace: flux-system
       version: "1.4.1"
+  interval: 15m
+  timeout: 5m
+  releaseName: nginx-ingress
   values:
     controller:
       metrics:
