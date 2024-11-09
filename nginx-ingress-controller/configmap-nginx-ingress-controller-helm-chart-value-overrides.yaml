@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   creationTimestamp: null
   name: nginx-ingress-controller-helm-chart-value-overrides
-  namespace: flux-system
+  namespace: nginx-ingress-controller
 data:
   values.yaml: |-
     controller:
