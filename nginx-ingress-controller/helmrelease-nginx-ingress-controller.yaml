@@ -19,6 +19,8 @@ spec:
     controller:
       metrics:
         enabled: true
+      service:
+        type:  NodePort
       #podAnnotations:
       #  prometheus.io/scrape: "true"
       #  prometheus.io/port: "10254"
