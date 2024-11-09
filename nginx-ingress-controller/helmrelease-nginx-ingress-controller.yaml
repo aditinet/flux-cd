@@ -4,7 +4,7 @@ metadata:
   name: nginx-ingress-controller
   namespace: nginx-ingress-controller
 spec:
-  releaseName: nginx-ingress-controller
+  releaseName: nginx-ingress
   chart:
     spec:
       chart: nginx-ingress
@@ -15,7 +15,6 @@ spec:
       version: "1.4.1"
   interval: 15m
   timeout: 5m
-  releaseName: nginx-ingress
   values:
     controller:
       metrics:
