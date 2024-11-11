@@ -10,9 +10,11 @@ spec:
       chart: nginx-ingress
       sourceRef:
         kind: HelmRepository
-        name: nginx-ingress
+        #name: nginx-ingress
+        name: ingress-nginx
         namespace: flux-system
-      version: "1.4.1"
+      #version: "1.4.1"
+      version: 4.11.3 
   interval: 5m
   timeout: 10m
   values:
@@ -23,8 +25,10 @@ spec:
         type:  NodePort
       image:
         ## The image repository of the Ingress Controller.
-        repository: nginx/nginx-ingress
-        tag: "3.7.1"
+        #repository: nginx/nginx-ingress
+        #tag: "3.7.1"
+        image: ingress-nginx/controller
+        tag: 4.11.3
       volumes:
         - name: rdwr-kwaap
           configMap:
