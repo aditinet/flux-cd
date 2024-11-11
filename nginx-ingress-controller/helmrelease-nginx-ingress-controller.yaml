@@ -10,8 +10,7 @@ spec:
       chart: nginx-ingress
       sourceRef:
         kind: HelmRepository
-        #name: nginx-ingress
-        name: ingress-nginx
+        name: nginx-ingress
         namespace: flux-system
       #version: "1.4.1"
       version: 4.11.3 
