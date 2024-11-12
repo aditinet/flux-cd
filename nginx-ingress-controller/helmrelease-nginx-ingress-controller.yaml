@@ -30,7 +30,8 @@ spec:
         #tag: "3.7.1"
         image: ingress-nginx/controller
         tag: 4.11.3
-      volumes:
+      #volumes:
+      extraVolumes:
         - name: rdwr-kwaap
           configMap:
             name: rdwr-kwaap
