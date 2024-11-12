@@ -37,7 +37,7 @@ spec:
       volumeMounts:
          - name: rdwr-kwaap
            mountPath: /etc/nginx/lua/plugins/rdwr-kwaap
-           subPath: rdwr-kwaap
+           #subPath: rdwr-kwaap
       config:
          entries: { allow-snippet-annotations: "true", plugins: rdwr-kwaap}
 
