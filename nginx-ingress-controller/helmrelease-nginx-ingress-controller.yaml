@@ -35,7 +35,8 @@ spec:
         - name: rdwr-kwaap
           configMap:
             name: rdwr-kwaap
-      volumeMounts:
+      #volumeMounts:
+      extraVolumeMounts:
          - name: rdwr-kwaap
            mountPath: /etc/nginx/lua/plugins/rdwr-kwaap
            #subPath: rdwr-kwaap
